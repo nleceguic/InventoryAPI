@@ -1,6 +1,6 @@
 # InventoryAPI
 
-[![CI](https://github.com/nleceguic/inventory-api/actions/workflows/ci.yml/badge.svg)](https://github.com/nleceguic/inventory-api/actions/workflows/ci.yml)
+[![CI](https://github.com/nleceguic/InventoryAPI/actions/workflows/ci.yml/badge.svg)](https://github.com/nleceguic/InventoryAPI/actions/workflows/ci.yml)
 
 REST API for inventory management built with Spring Boot 3.3. Implements JWT authentication, role-based access control (ADMIN / USER), and full CRUD for categories and products. Designed as a portfolio project demonstrating enterprise Java patterns.
 
