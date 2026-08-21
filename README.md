@@ -123,15 +123,21 @@ Override via environment variables or a local `application-local.yml` profile.
 mvn test
 ```
 
-Tests use an H2 in-memory database — no PostgreSQL instance required.
+Tests use an H2 in-memory database — no PostgreSQL instance required. The test profile
+now runs the real Flyway migrations (`V1`–`V5`) against H2 instead of letting Hibernate
+generate the schema, so the repository-level tests below exercise the same SQL that runs
+in production.
 
 | Suite | Type | Count |
 |---|---|---|
 | `ProductServiceTest` | Unit (Mockito) | 6 |
 | `AuthServiceTest` | Unit (Mockito) | 3 |
 | `ProductControllerTest` | Integration (@SpringBootTest + MockMvc) | 7 |
+| `UserRepositoryTest` | Persistence (@DataJpaTest + Flyway/H2) | 5 |
+| `CategoryRepositoryTest` | Persistence (@DataJpaTest + Flyway/H2) | 3 |
+| `ProductRepositoryTest` | Persistence (@DataJpaTest + Flyway/H2) | 5 |
 
-Total: **16 tests** (+ 1 smoke test).
+Total: **29 tests** (+ 1 smoke test).
 
 ## Design Decisions
 
@@ -181,3 +187,33 @@ check above), unique-violation behavior, or any native query using
 Postgres-specific syntax or types. Until repository tests exist, H2 is
 validating "does the context wire up," and Testcontainers wouldn't change
 that.
+
+**Update — repository tests added.** The gap described above is now partly
+closed. `UserRepositoryTest`, `CategoryRepositoryTest`, and
+`ProductRepositoryTest` are `@DataJpaTest` suites that hit H2 for real: save
+and reload each entity, exercise the custom repository queries
+(`findByEmail`, `findByUsername`, `findByName`, `findBySku`,
+`existsBySku`, `findByActiveTrue`), and — the specific case called out
+above — insert a raw row with an invalid `role` value and confirm H2 rejects
+it with a `DataIntegrityViolationException`.
+
+To make that last check meaningful, the test profile (`application-test.yml`)
+now runs Flyway (`flyway.enabled: true`) against H2 instead of relying on
+`ddl-auto: create-drop`, with Hibernate set to `ddl-auto: validate` — the
+same mode used against Postgres in `application.yml`. So the schema tests
+run against is `V1`–`V5` executed for real, not a Hibernate-inferred
+approximation, and the `CHECK (role IN ('ADMIN', 'USER'))` constraint from
+`V1__create_users_table.sql` is now actually in play. Running those
+migrations — including `BIGSERIAL` and `NOW()`, both Postgres-flavored
+syntax — against H2 without any Postgres-compatibility mode worked without
+changes, which resolved the main open question from the original analysis
+above (whether H2 and Postgres would disagree on the SQL these migrations
+use).
+
+This still isn't the Testcontainers alternative discussed above — H2 is
+still a different engine from the production Postgres, so silent
+divergences on more exotic SQL (a native `@Query`, a Postgres-only type)
+remain possible in principle. But the specific, concrete gap this project
+had — no test ever reaching the database, and the `role` check never being
+exercised — is closed. Testcontainers would still be the move if this
+codebase grows Postgres-specific SQL that H2 can't faithfully emulate.
