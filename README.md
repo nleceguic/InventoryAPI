@@ -133,11 +133,13 @@ in production.
 | `ProductServiceTest` | Unit (Mockito) | 6 |
 | `AuthServiceTest` | Unit (Mockito) | 3 |
 | `ProductControllerTest` | Integration (@SpringBootTest + MockMvc) | 7 |
+| `CategoryControllerTest` | Integration (@SpringBootTest + MockMvc) | 7 |
+| `AuthControllerIntegrationTest` | Integration (@SpringBootTest + MockMvc, no mocks) | 1 |
 | `UserRepositoryTest` | Persistence (@DataJpaTest + Flyway/H2) | 5 |
 | `CategoryRepositoryTest` | Persistence (@DataJpaTest + Flyway/H2) | 3 |
 | `ProductRepositoryTest` | Persistence (@DataJpaTest + Flyway/H2) | 5 |
 
-Total: **29 tests** (+ 1 smoke test).
+Total: **37 tests** (+ 1 smoke test).
 
 ## Design Decisions
 
