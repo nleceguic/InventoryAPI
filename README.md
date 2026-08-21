@@ -132,3 +132,52 @@ Tests use an H2 in-memory database — no PostgreSQL instance required.
 | `ProductControllerTest` | Integration (@SpringBootTest + MockMvc) | 7 |
 
 Total: **16 tests** (+ 1 smoke test).
+
+## Design Decisions
+
+### H2 vs. Testcontainers for integration tests
+
+**Context.** The test profile (`application-test.yml`) points at an H2 in-memory
+database instead of the PostgreSQL 17 used in production, and disables Flyway
+(`flyway.enabled: false`) in favor of `ddl-auto: create-drop` — the schema
+tests run against is generated from the JPA entity mappings, not from the
+`db/migration` SQL files.
+
+**Alternative considered.** Testcontainers with a real Postgres container per
+test run. This is the more faithful option — it exercises the exact engine
+used in production instead of a substitute — at the cost of needing Docker
+available wherever tests run, plus container pull/startup time on every run.
+
+**Why H2.** No Docker dependency for `mvn test` — this matters for a
+portfolio project someone might clone and run without a Postgres/Docker setup
+on hand. Tests start in-process and boot fast, and CI doesn't need a services
+block.
+
+**Honest trade-off.** The usual risk with this choice is behavioral
+divergence from Postgres — different handling of specific column types,
+Postgres-only functions, or constraint semantics that H2 doesn't replicate
+exactly. Checking this codebase for that risk turned up something more basic:
+**none of the current tests actually exercise the database through H2.**
+`ProductServiceTest` and `AuthServiceTest` are pure Mockito unit tests with no
+Spring context at all. `ProductControllerTest` boots a full `@SpringBootTest`
+context (which is why H2 needs to be wired up in the first place — JPA
+autoconfiguration wants a datasource), but `ProductService` is `@MockBean`,
+so no test method ever reaches the repository layer. H2 currently exists to
+let the Spring context start, not to validate persistence behavior.
+
+That also means the `CHECK (role IN ('ADMIN', 'USER'))` constraint from
+`V1__create_users_table.sql` is never in play during tests — Flyway is
+skipped, and Hibernate's `create-drop` doesn't derive a check constraint from
+`@Enumerated(EnumType.STRING)`. So today the H2-vs-Postgres question is
+mostly moot: there's no JSONB, no native `@Query`, no Postgres-specific SQL
+anywhere in `src/main`, and no test that would even notice if H2 and Postgres
+disagreed. The trade-off is real but currently prospective, not something
+this codebase has actually hit.
+
+**When to migrate.** Testcontainers earns its cost once there's an actual
+repository-level test suite (`@DataJpaTest` or similar) asserting on things
+that can differ between engines: constraint enforcement (like the `role`
+check above), unique-violation behavior, or any native query using
+Postgres-specific syntax or types. Until repository tests exist, H2 is
+validating "does the context wire up," and Testcontainers wouldn't change
+that.
