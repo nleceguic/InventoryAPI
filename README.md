@@ -141,6 +141,20 @@ in production.
 
 Total: **37 tests** (+ 1 smoke test).
 
+**Cobertura obtenida** (`mvn test`, medida el 2026-08-21): **79.8% de líneas** (313/392) y
+**44.7% de ramas** (17/38) sobre todo el proyecto `inventory-api`. El paquete más débil es
+`com.nleceguic.inventory.exception` (clase `GlobalExceptionHandler`): **50% de líneas y 0%
+de ramas**. Concretamente, `handleUsernameNotFound`, todo el cuerpo de
+`handleRuntimeException` (las ramas "not found" / "already exists" / fallback 500) y
+`handleGenericException` nunca se ejecutan a través de una petición HTTP real — ningún test
+actual provoca esas excepciones concretas dentro del stack completo. Solo
+`handleValidationErrors`, `handleAccessDenied` (403 de `@PreAuthorize`) e
+`handleIllegalArgument` están cubiertos, porque son los únicos casos que los tests de
+controlador disparan hoy.
+
+JaCoCo genera el reporte automáticamente al correr `mvn test` (el plugin está enlazado a la
+fase `test`); el HTML queda en `target/site/jacoco/index.html`.
+
 ## Design Decisions
 
 ### H2 vs. Testcontainers for integration tests
